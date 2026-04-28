@@ -404,7 +404,7 @@ async function loadData() {
     });
     const bulanAvail = BULAN_ORDER.filter(b => bulanSet.has(b));
     populateBulan(bulanAvail);
-    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')}`);
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')} (Nov & Des Tahun 2025)`);
     renderAll();
 
   } catch(e) {
