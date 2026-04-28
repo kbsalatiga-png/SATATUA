@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-Frame-Options" content="ALLOWALL" />
+  <meta name="referrer" content="no-referrer-when-downgrade" />
+  <title>SATATUA — Tabulasi Data Kelurahan Kutowinangun Lor</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f2ed;
+      --surface: #ffffff;
+      --surface2: #f0ede8;
+      --border: #ddd8d0;
+      --accent: #2d6a4f;
+      --accent-light: #d8f3dc;
+      --text: #1a1a1a;
+      --text-muted: #6b6560;
+      --header-bg: #2d6a4f;
+      --row-alt: #f7f5f2;
+      --shadow: 0 2px 12px rgba(0,0,0,0.07);
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      background: var(--header-bg);
+      padding: 28px 40px 24px;
+      display: flex;
+      align-items: flex-end;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .site-header-left h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      color: #fff;
+      line-height: 1;
+      letter-spacing: -0.5px;
+    }
+    .site-header-left p {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.65);
+      margin-top: 4px;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .header-controls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .header-controls label {
+      color: rgba(255,255,255,0.75);
+      font-size: 0.82rem;
+      font-weight: 500;
+    }
+    #bulan-select {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 8px 36px 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='white' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    #bulan-select:focus { outline: none; }
+    #bulan-select option { background: #2d6a4f; color: #fff; }
+    .refresh-btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.82rem;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover { background: rgba(255,255,255,0.25); }
+
+    /* ── TAB NAV ── */
+    .tab-nav {
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+      padding: 0 40px;
+      display: flex;
+      overflow-x: auto;
+    }
+    .tab-nav button {
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      padding: 12px 16px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab-nav button:hover { color: var(--accent); }
+    .tab-nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── MAIN ── */
+    main {
+      max-width: 1150px;
+      margin: 32px auto;
+      padding: 0 24px 60px;
+    }
+
+    /* ── STATUS ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #aaa;
+      flex-shrink: 0;
+    }
+    .status-dot.ok      { background: #38a169; }
+    .status-dot.loading { background: #b7791f; animation: pulse 1s infinite; }
+    .status-dot.error   { background: #e53e3e; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* ── SECTIONS ── */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .section-header { margin-bottom: 20px; }
+    .section-header h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.4rem;
+      color: var(--accent);
+    }
+    .section-header p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    /* ── TABLE CARD ── */
+    .table-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 28px;
+      border: 1px solid var(--border);
+    }
+    .table-card-header {
+      background: var(--header-bg);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-card-header h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1rem;
+      color: #fff;
+      font-weight: 400;
+    }
+    .badge {
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.85);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .table-scroll { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.855rem;
+    }
+    thead tr th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      padding: 9px 12px;
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+      white-space: nowrap;
+    }
+    thead tr th:first-child { text-align: left; min-width: 88px; }
+    tbody tr td {
+      padding: 9px 12px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    tbody tr td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: var(--accent);
+      font-size: 0.82rem;
+    }
+    tbody tr:nth-child(even) td { background: var(--row-alt); }
+    tbody tr:hover td { background: var(--accent-light); }
+    tbody tr.total-row td {
+      font-weight: 700;
+      background: #eaf4ef;
+      color: var(--accent);
+      border-top: 2px solid var(--border);
+    }
+    td.zero { color: #ccc; }
+
+    /* ── LOADING / ERROR ── */
+    .loading-overlay {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 8px;
+      padding: 20px 24px;
+      color: #c53030;
+      font-size: 0.88rem;
+    }
+    .no-data {
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+      font-style: italic;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 20px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="site-header-left">
+    <h1>SATATUA</h1>
+    <p>Satu Data untuk Semua — Dashboard Tabulasi Kelurahan</p>
+  </div>
+  <div class="header-controls">
+    <label for="bulan-select">Pilih Bulan:</label>
+    <select id="bulan-select"></select>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</header>
+
+<!-- TAB NAVIGASI -->
+<nav class="tab-nav">
+  <button class="active" onclick="switchTab('penduduk', this)">Jumlah Penduduk</button>
+  <button onclick="switchTab('keluarga', this)">Keluarga / KK</button>
+  <button onclick="switchTab('pus', this)">Jumlah PUS & KB</button>
+  <button onclick="switchTab('balita', this)">Balita, Baduta & Busui</button>
+  <button onclick="switchTab('wus', this)">Jumlah WUS</button>
+  <button onclick="switchTab('mbg', this)">Penerima MBG 3B</button>
+</nav>
+
+<!-- MAIN -->
+<main>
+  <div class="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Memuat data…</span>
+  </div>
+  <div id="content">
+    <div class="loading-overlay">
+      <div class="spinner"></div>
+      <p>Mengambil data dari Google Sheets…</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Data bersumber dari Google Sheets SATATUA &nbsp;·&nbsp; Diperbarui otomatis saat halaman dimuat
+</footer>
+
+<script>
+// ── KONFIGURASI ──────────────────────────────────────────────────────────────
+const SHEET_ID   = '16KHFzbNsRHPYE-gBY8ZWJcfMUCDcj5qodHjGfhnDUmk';
+const SHEET_NAME = 'Form Responses 1';
+const CSV_URL    = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+const BULAN_ORDER = ['Januari','Februari','Maret','April','Mei','Juni',
+                     'Juli','Agustus','September','Oktober','November','Desember'];
+const RW_LIST     = ['RW 01','RW 02','RW 03','RW 04','RW 05','RW 06'];
+const USIA_GROUPS = ['0 - 4','5 - 9','10 - 14','15 - 19','20 - 24','25 - 29',
+                     '30 - 34','35 - 39','40 - 44','45 - 49','50 - 54','55 - 59',
+                     '60 - 64','65 - 69','70 +'];
+const WUS_GROUPS  = ['15-19','20-24','25-29','30-34','35-39','40-44','45-49'];
+
+// ── PARSE CSV ────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows = [];
+  let inQuote = false, field = '', row = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === '"') {
+      if (inQuote && text[i+1] === '"') { field += '"'; i++; }
+      else inQuote = !inQuote;
+    } else if (ch === ',' && !inQuote) {
+      row.push(field.trim()); field = '';
+    } else if ((ch === '\n' || ch === '\r') && !inQuote) {
+      row.push(field.trim()); field = '';
+      if (row.some(c => c !== '')) rows.push(row);
+      row = [];
+      if (ch === '\r' && text[i+1] === '\n') i++;
+    } else { field += ch; }
+  }
+  if (field || row.length) { row.push(field.trim()); rows.push(row); }
+  return rows;
+}
+
+// ── TANGGAL → BULAN ──────────────────────────────────────────────────────────
+function getBulan(raw) {
+  if (!raw) return null;
+  let d;
+  if (typeof raw === 'string') {
+    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (m) d = new Date(+m[3], +m[2]-1, +m[1]);
+    else d = new Date(raw);
+  } else d = new Date(raw);
+  if (isNaN(d)) return null;
+  return BULAN_ORDER[d.getMonth()];
+}
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let allRows  = [];
+let activeTab = 'penduduk';
+
+// ── LOAD DATA ────────────────────────────────────────────────────────────────
+async function loadData() {
+  setStatus('loading', 'Mengambil data dari Google Sheets…');
+  document.getElementById('content').innerHTML =
+    `<div class="loading-overlay"><div class="spinner"></div><p>Mengambil data…</p></div>`;
+  try {
+    const resp = await fetch(CSV_URL + '&t=' + Date.now());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('Data kosong');
+
+    const headers = rows[0];
+    allRows = rows.slice(1).map(r => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h ? h.trim() : `col${i}`] = r[i] || '');
+      return obj;
+    });
+
+    const bulanSet = new Set();
+    allRows.forEach(r => {
+      const b = getBulan(r['TANGGAL PENGISIAN'] || r['TANGGAL PENGISIAN ']);
+      if (b) bulanSet.add(b);
+    });
+    const bulanAvail = BULAN_ORDER.filter(b => bulanSet.has(b));
+    populateBulan(bulanAvail);
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')}`);
+    renderAll();
+
+  } catch(e) {
+    setStatus('error', 'Gagal memuat data: ' + e.message);
+    document.getElementById('content').innerHTML =
+      `<div class="error-box">⚠️ Gagal mengambil data dari Google Sheets.<br>
+       Pastikan spreadsheet sudah disetel <strong>"Anyone with the link can view"</strong>.<br><br>
+       Detail: ${e.message}</div>`;
+  }
+}
+
+function populateBulan(list) {
+  const sel = document.getElementById('bulan-select');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  list.forEach(b => {
+    const o = document.createElement('option');
+    o.value = b; o.textContent = b; sel.appendChild(o);
+  });
+  if (list.includes(prev)) sel.value = prev;
+  else if (list.length) sel.value = list[list.length - 1];
+}
+
+function getBulanSelected() { return document.getElementById('bulan-select').value; }
+
+// ── FILTER ───────────────────────────────────────────────────────────────────
+// Ambil baris yang cocok bulan + jenis, ATAU jenisnya kosong (data lama)
+function filterRows(bulan, jenis) {
+  return allRows.filter(r => {
+    const b = getBulan(r['TANGGAL PENGISIAN'] || r['TANGGAL PENGISIAN ']);
+    const j = (r['JENIS INPUTAN DATA'] || '').trim();
+    const rw = (r['RW'] || '').trim();
+    if (b !== bulan || !RW_LIST.includes(rw)) return false;
+    return j === jenis || j === '';
+  });
+}
+
+function num(row, col) {
+  const v = parseFloat(row[col]);
+  return isNaN(v) ? 0 : v;
+}
+
+function sumRW(rows, rw, col) {
+  return rows
+    .filter(r => (r['RW'] || '').trim() === rw)
+    .reduce((a, r) => a + num(r, col), 0);
+}
+
+function fmtNum(v) {
+  return v === 0
+    ? `<td class="zero">–</td>`
+    : `<td>${v.toLocaleString('id-ID')}</td>`;
+}
+
+// ── HELPER: BUILD TABLE (dengan kolom Total) ──────────────────────────────────
+function buildTable(title, bulan, rows, cols) {
+  if (!rows.length)
+    return `<div class="table-card">
+      <div class="table-card-header"><h3>${title}</h3><span class="badge">${bulan}</span></div>
+      <div class="no-data">Tidak ada data untuk bulan <strong>${bulan}</strong>.</div>
+    </div>`;
+
+  const grand = new Array(cols.length).fill(0);
+  let body = '';
+  RW_LIST.forEach(rw => {
+    const vals = cols.map(c => sumRW(rows, rw, c.key));
+    const tot  = vals.reduce((a, b) => a + b, 0);
+    vals.forEach((v, i) => grand[i] += v);
+    body += `<tr><td>${rw}</td>${vals.map(fmtNum).join('')}<td><strong>${tot.toLocaleString('id-ID')}</strong></td></tr>`;
+  });
+  const grandSum = grand.reduce((a, b) => a + b, 0);
+  body += `<tr class="total-row"><td>TOTAL</td>${grand.map(v=>`<td>${v.toLocaleString('id-ID')}</td>`).join('')}<td>${grandSum.toLocaleString('id-ID')}</td></tr>`;
+
+  return `<div class="table-card">
+    <div class="table-card-header"><h3>${title}</h3><span class="badge">${bulan}</span></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Wilayah</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}<th>Total</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ── HELPER: BUILD TABLE (tanpa kolom Total) ───────────────────────────────────
+function buildTableNoTotal(title, bulan, rows, cols) {
+  if (!rows.length)
+    return `<div class="table-card">
+      <div class="table-card-header"><h3>${title}</h3><span class="badge">${bulan}</span></div>
+      <div class="no-data">Tidak ada data untuk bulan <strong>${bulan}</strong>.</div>
+    </div>`;
+
+  const grand = new Array(cols.length).fill(0);
+  let body = '';
+  RW_LIST.forEach(rw => {
+    const vals = cols.map(c => sumRW(rows, rw, c.key));
+    vals.forEach((v, i) => grand[i] += v);
+    body += `<tr><td>${rw}</td>${vals.map(fmtNum).join('')}</tr>`;
+  });
+  body += `<tr class="total-row"><td>TOTAL</td>${grand.map(v=>`<td>${v.toLocaleString('id-ID')}</td>`).join('')}</tr>`;
+
+  return `<div class="table-card">
+    <div class="table-card-header"><h3>${title}</h3><span class="badge">${bulan}</span></div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>Wilayah</th>${cols.map(c=>`<th>${c.label}</th>`).join('')}</tr></thead>
+      <tbody>${body}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ── 1. JUMLAH PENDUDUK ────────────────────────────────────────────────────────
+function renderPenduduk(bulan) {
+  const rows  = filterRows(bulan, 'JUMLAH PENDUDUK');
+  const colsL = USIA_GROUPS.map(u => ({ label: u, key: `LAKI-LAKI | USIA ${u} TAHUN` }));
+  const colsP = USIA_GROUPS.map(u => ({ label: u, key: `PEREMPUAN | USIA ${u} TAHUN` }));
+  return `
+    <div class="section-header">
+      <h2>Jumlah Penduduk</h2>
+      <p>Data jumlah penduduk per wilayah RW berdasarkan kelompok usia · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTable('Penduduk Laki-laki per Kelompok Usia', bulan, rows, colsL)}
+    ${buildTable('Penduduk Perempuan per Kelompok Usia', bulan, rows, colsP)}`;
+}
+
+// ── 2. KELUARGA / KK ──────────────────────────────────────────────────────────
+function renderKeluarga(bulan) {
+  const rows = filterRows(bulan, 'KELUARGA / KK');
+  const cols = [
+    { label: 'Jumlah KK',          key: 'JUMLAH KK DI WILAYAH RW' },
+    { label: 'Jumlah Remaja',       key: 'JUMLAH REMAJA DI WILAYAH RW' },
+    { label: 'Kel. punya Balita',   key: 'JUMLAH KELUARGA YANG MEMPUNYAI BALITA DI WILAYAH RW' },
+    { label: 'Kel. punya Remaja',   key: 'JUMLAH KELUARGA YANG MEMPUNYAI REMAJA DI WILAYAH RW' },
+    { label: 'Kel. punya Lansia',   key: 'JUMLAH KELUARGA YANG MEMPUNYAI LANSIA DI WILAYAH RW' },
+  ];
+  return `
+    <div class="section-header">
+      <h2>Keluarga / KK</h2>
+      <p>Data jumlah keluarga dan komposisi per wilayah RW · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTableNoTotal('Data Keluarga per Wilayah RW', bulan, rows, cols)}`;
+}
+
+// ── 3. JUMLAH PUS & KB ────────────────────────────────────────────────────────
+function renderPUS(bulan) {
+  const rows = filterRows(bulan, 'JUMLAH PUS');
+  const colsPUS = [
+    { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB' },
+    { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB' },
+  ];
+  const colsKB = [
+    { label: 'Pil',            key: 'PIL' },
+    { label: 'Suntik',         key: 'SUNTIK' },
+    { label: 'Implan',         key: 'IMPLAN' },
+    { label: 'Kondom',         key: 'KONDOM' },
+    { label: 'IUD',            key: 'IUD' },
+    { label: 'MOW',            key: 'MOW' },
+    { label: 'MOP',            key: 'MOP' },
+    { label: 'KB Tradisional', key: 'KB TRADISIONAL' },
+  ];
+  const colsAlasan = [
+    { label: 'Hamil', key: 'HAMIL' },
+    { label: 'Nifas',  key: 'NIFAS' },
+    { label: 'IAS',   key: 'INGIN ANAK SEGERA (IAS)' },
+    { label: 'IAT',   key: 'INGIN ANAK TUNDA (IAT)' },
+    { label: 'TIAL',  key: 'TIDAK INGIN ANAK LAGI (TIAL)' },
+  ];
+  return `
+    <div class="section-header">
+      <h2>Jumlah PUS & Keikutsertaan KB</h2>
+      <p>Data Pasangan Usia Subur, metode KB, dan alasan tidak ber-KB · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTableNoTotal('Jumlah PUS — Ber-KB & Tidak Ber-KB', bulan, rows, colsPUS)}
+    ${buildTable('Keikutsertaan KB per Metode', bulan, rows, colsKB)}
+    ${buildTable('Alasan Tidak Ber-KB', bulan, rows, colsAlasan)}`;
+}
+
+// ── 4. BALITA, BADUTA & BUSUI ─────────────────────────────────────────────────
+function renderBalita(bulan) {
+  const rows = filterRows(bulan, 'JUMLAH BALITA, BADUTA DAN BUSUI');
+  const cols = [
+    { label: 'Jumlah Balita',        key: 'JUMLAH BALITA' },
+    { label: 'Jumlah Baduta',        key: 'JUMLAH BADUTA' },
+    { label: 'Ibu Menyusui (Busui)', key: 'JUMLAH IBU MENYUSUI' },
+  ];
+  return `
+    <div class="section-header">
+      <h2>Jumlah Balita, Baduta & Busui</h2>
+      <p>Data balita, baduta, dan ibu menyusui per wilayah RW · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTableNoTotal('Data Balita, Baduta & Busui per Wilayah RW', bulan, rows, cols)}`;
+}
+
+// ── 5. JUMLAH WUS ─────────────────────────────────────────────────────────────
+function renderWUS(bulan) {
+  // WUS ada di baris yang sama dengan JUMLAH PENDUDUK
+  const rows = filterRows(bulan, 'JUMLAH PENDUDUK');
+  const cols = WUS_GROUPS.map(u => ({ label: u, key: `WUS USIA ${u} TAHUN` }));
+  return `
+    <div class="section-header">
+      <h2>Jumlah WUS</h2>
+      <p>Data Wanita Usia Subur per kelompok usia · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTable('WUS per Kelompok Usia', bulan, rows, cols)}`;
+}
+
+// ── 6. PENERIMA MBG 3B ───────────────────────────────────────────────────────
+function renderMBG(bulan) {
+  const rows = filterRows(bulan, 'PENERIMA MBG 3B');
+  const cols = [
+    { label: 'Bumil (Ibu Hamil)',    key: 'Penerima Bumil (Ibu Hamil)' },
+    { label: 'Baduta (Non-PAUD)',    key: 'Penerima Baduta (Non-PAUD)' },
+    { label: 'Busui (Ibu Menyusui)', key: 'Penerima Busui (Ibu Menyusui)' },
+  ];
+  return `
+    <div class="section-header">
+      <h2>Penerima MBG 3B</h2>
+      <p>Data penerima program MBG — Bumil, Baduta, Busui · Bulan: <strong>${bulan}</strong></p>
+    </div>
+    ${buildTableNoTotal('Penerima MBG 3B per Wilayah RW', bulan, rows, cols)}`;
+}
+
+// ── RENDER SEMUA ─────────────────────────────────────────────────────────────
+function renderAll() {
+  const bulan = getBulanSelected();
+  if (!bulan) return;
+
+  const sections = {
+    penduduk: renderPenduduk(bulan),
+    keluarga: renderKeluarga(bulan),
+    pus:      renderPUS(bulan),
+    balita:   renderBalita(bulan),
+    wus:      renderWUS(bulan),
+    mbg:      renderMBG(bulan),
+  };
+
+  let html = '';
+  for (const [id, content] of Object.entries(sections)) {
+    html += `<div class="section${id === activeTab ? ' active' : ''}" id="sec-${id}">${content}</div>`;
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+// ── TAB SWITCH ────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-nav button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const sec = document.getElementById('sec-' + tab);
+  if (sec) sec.classList.add('active');
+}
+
+// ── STATUS ────────────────────────────────────────────────────────────────────
+function setStatus(state, msg) {
+  document.getElementById('status-dot').className = 'status-dot ' + state;
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ── EVENT & INIT ──────────────────────────────────────────────────────────────
+document.getElementById('bulan-select').addEventListener('change', renderAll);
+loadData();
+</script>
+</body>
+</html>
