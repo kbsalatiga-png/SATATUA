@@ -362,17 +362,20 @@ function parseCSV(text) {
 }
 
 // ── TANGGAL → BULAN ──────────────────────────────────────────────────────────
+// Di Form Responses 1 (Google Sheets asli), TANGGAL PENGISIAN berformat DD/MM/YYYY
+// mis. "20/04/2026" → April. Timestamp juga DD/MM/YYYY HH:MM:SS.
 function getBulan(raw) {
   if (!raw) return null;
-  let d;
-  if (typeof raw === 'string') {
-    const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (m) d = new Date(+m[3], +m[2]-1, +m[1]);
-    else d = new Date(raw);
-  } else d = new Date(raw);
-  if (isNaN(d)) return null;
-  return BULAN_ORDER[d.getMonth()];
+  const s = String(raw).trim();
+  // Format DD/MM/YYYY (atau DD/MM/YYYY HH:MM:SS)
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) {
+    const d = new Date(+m[3], +m[2]-1, +m[1]);
+    return isNaN(d) ? null : BULAN_ORDER[d.getMonth()];
+  }
+  return null;
 }
+
 
 // ── STATE ────────────────────────────────────────────────────────────────────
 let allRows   = [];  // raw semua baris dari CSV
@@ -393,7 +396,12 @@ function buildDedup(rows) {
     const rw = (r['RW'] || '').trim();
     if (!b || !RW_LIST.includes(rw)) return;
     const key = b + '|' + rw;
-    const ts  = new Date(r['Timestamp'] || 0).getTime();
+    // Timestamp di Google Sheets: "DD/MM/YYYY HH:MM:SS" → parse manual
+    const tsRaw = r['Timestamp'] || '';
+    const tsMatch = tsRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/);
+    const ts = tsMatch
+      ? new Date(+tsMatch[3], +tsMatch[2]-1, +tsMatch[1], +tsMatch[4], +tsMatch[5], +tsMatch[6]).getTime()
+      : 0;
     r._ts    = ts;
     r._bulan = b;
     if (!groups[key]) groups[key] = [];
