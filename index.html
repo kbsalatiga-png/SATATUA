@@ -383,16 +383,36 @@ let activeTab = 'penduduk';
 // Untuk setiap kombinasi Bulan+RW, simpan hanya baris dengan Timestamp terbaru
 function buildDedup(rows) {
   const map = {};
+
+  // Hitung jumlah kolom terisi (tidak kosong, bukan '0') pada suatu baris
+  function countFilled(r) {
+    return Object.values(r).filter(v => v !== '' && v !== '0' && v != null).length;
+  }
+
   rows.forEach(r => {
     const b  = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
     const rw = (r['RW'] || '').trim();
     if (!b || !RW_LIST.includes(rw)) return;
-    const key = b + '|' + rw;
-    const ts  = new Date(r['Timestamp'] || 0).getTime();
-    if (!map[key] || ts > map[key]._ts) {
-      r._ts   = ts;
-      r._bulan = b;
+    const key    = b + '|' + rw;
+    const ts     = new Date(r['Timestamp'] || 0).getTime();
+    const filled = countFilled(r);
+    r._ts     = ts;
+    r._bulan  = b;
+    r._filled = filled;
+
+    if (!map[key]) {
+      // Belum ada — langsung masukkan
       map[key] = r;
+    } else {
+      const prev = map[key];
+      if (filled > prev._filled) {
+        // Baris baru lebih lengkap — ganti
+        map[key] = r;
+      } else if (filled === prev._filled && ts > prev._ts) {
+        // Sama lengkap — ambil yang lebih baru (tiebreaker)
+        map[key] = r;
+      }
+      // Kalau baris baru lebih kosong — abaikan
     }
   });
   return map;
@@ -427,7 +447,7 @@ async function loadData() {
     populateBulan(bulanAvail);
 
     const totalDedup = Object.keys(dedupRows).length;
-    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris (${totalDedup} unik RW/bulan) · Bulan: ${bulanAvail.join(', ')} (*Nov & Des Tahun 2025)`);
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris (${totalDedup} unik RW/bulan) · Bulan: ${bulanAvail.join(', ')} (*Nov & Des Tahun 2025)`;
     renderAll();
 
   } catch(e) {
