@@ -427,7 +427,7 @@ async function loadData() {
     populateBulan(bulanAvail);
 
     const totalDedup = Object.keys(dedupRows).length;
-    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris (${totalDedup} unik RW/bulan) · Bulan: ${bulanAvail.join(', ')} (*Nov & Des Tahun 2025`);
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris (${totalDedup} unik RW/bulan) · Bulan: ${bulanAvail.join(', ')} (*Nov & Des Tahun 2025)`;
     renderAll();
 
   } catch(e) {
