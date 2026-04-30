@@ -392,7 +392,7 @@ function buildDedup(rows) {
   const groups = {};   // key → [ rowObject, ... ]
 
   rows.forEach(r => {
-    const b  = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
+    const b  = getBulan(r['TANGGAL PENGISIAN'] || r['TANGGAL PENGISIAN ']);
     const rw = (r['RW'] || '').trim();
     if (!b || !RW_LIST.includes(rw)) return;
     const key = b + '|' + rw;
@@ -410,7 +410,7 @@ function buildDedup(rows) {
 
   // Untuk setiap grup, merge semua baris menjadi satu baris virtual
   const map = {};
-  const META_KEYS = new Set(['Timestamp','NAMA KADER ','TANGGAL PENGISIAN ','TANGGAL PENGISIAN','RW','JENIS INPUTAN DATA','BULAN','_ts','_bulan']);
+  const META_KEYS = new Set(['Timestamp','NAMA KADER','NAMA KADER ','TANGGAL PENGISIAN','TANGGAL PENGISIAN ','RW','JENIS INPUTAN DATA','BULAN','_ts','_bulan']);
 
   Object.entries(groups).forEach(([key, groupRows]) => {
     if (!groupRows.length) return;
@@ -623,8 +623,8 @@ function renderKeluarga(bulan) {
 function renderPUS(bulan) {
   const rows = filterRows(bulan);
   const colsPUS = [
-    { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB ' },
-    { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB ' },
+    { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB' },
+    { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB' },
   ];
   const colsKB = [
     { label: 'Pil',            key: 'PIL' },
