@@ -379,42 +379,64 @@ let allRows   = [];  // raw semua baris dari CSV
 let dedupRows = {};  // { 'BULAN|RW': rowObject } — 1 baris per RW per bulan (latest)
 let activeTab = 'penduduk';
 
-// ── DEDUPLIKASI ───────────────────────────────────────────────────────────────
-// Untuk setiap kombinasi Bulan+RW, simpan hanya baris dengan Timestamp terbaru
+// ── DEDUPLIKASI (column-level merge) ─────────────────────────────────────────
+// Untuk setiap kombinasi Bulan+RW, kumpulkan SEMUA baris lalu merge per kolom:
+// setiap kolom diambil dari baris yang mengisinya, dengan timestamp terbaru
+// sebagai tiebreaker jika lebih dari satu baris mengisi kolom yang sama.
+// Ini menangani model lama di mana 1 baris = 1 jenis inputan.
 function buildDedup(rows) {
-  const map = {};
-
-  // Hitung jumlah kolom terisi (tidak kosong, bukan '0') pada suatu baris
-  function countFilled(r) {
-    return Object.values(r).filter(v => v !== '' && v != null).length;
-  }
+  // Kelompokkan semua baris berdasarkan bulan+RW
+  const groups = {};   // key → [ rowObject, ... ]
 
   rows.forEach(r => {
     const b  = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
     const rw = (r['RW'] || '').trim();
     if (!b || !RW_LIST.includes(rw)) return;
-    const key    = b + '|' + rw;
-    const ts     = new Date(r['Timestamp'] || 0).getTime();
-    const filled = countFilled(r);
-    r._ts     = ts;
-    r._bulan  = b;
-    r._filled = filled;
-
-    if (!map[key]) {
-      // Belum ada — langsung masukkan
-      map[key] = r;
-    } else {
-      const prev = map[key];
-      if (filled > prev._filled) {
-        // Baris baru lebih lengkap — ganti
-        map[key] = r;
-      } else if (filled === prev._filled && ts > prev._ts) {
-        // Sama lengkap — ambil yang lebih baru (tiebreaker)
-        map[key] = r;
-      }
-      // Kalau baris baru lebih kosong — abaikan
-    }
+    const key = b + '|' + rw;
+    const ts  = new Date(r['Timestamp'] || 0).getTime();
+    r._ts    = ts;
+    r._bulan = b;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
   });
+
+  // Untuk setiap grup, merge semua baris menjadi satu baris virtual
+  const map = {};
+  const META_KEYS = new Set(['Timestamp','NAMA KADER ','TANGGAL PENGISIAN ','TANGGAL PENGISIAN','RW','JENIS INPUTAN DATA','BULAN','_ts','_bulan']);
+
+  Object.entries(groups).forEach(([key, groupRows]) => {
+    if (!groupRows.length) return;
+
+    // Ambil representatif (baris timestamp terbaru) untuk metadata
+    const latest = groupRows.reduce((a, b) => b._ts > a._ts ? b : a);
+
+    // Mulai dari objek kosong lalu isi per kolom
+    const merged = { ...latest };  // salin metadata dari baris terbaru
+
+    // Kumpulkan semua kolom data yang muncul di grup ini
+    const allKeys = new Set();
+    groupRows.forEach(r => Object.keys(r).forEach(k => allKeys.add(k)));
+
+    allKeys.forEach(col => {
+      if (META_KEYS.has(col)) return;  // metadata sudah dari 'latest'
+      // Cari nilai terbaik: nilai non-kosong dengan timestamp terbesar
+      let bestVal = '';
+      let bestTs  = -1;
+      groupRows.forEach(r => {
+        const v = r[col];
+        if (v !== '' && v != null) {
+          if (r._ts > bestTs) {
+            bestVal = v;
+            bestTs  = r._ts;
+          }
+        }
+      });
+      merged[col] = bestVal;
+    });
+
+    map[key] = merged;
+  });
+
   return map;
 }
 
