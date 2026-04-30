@@ -287,7 +287,7 @@
 <!-- HEADER -->
 <header class="site-header">
   <div class="site-header-left">
-   <!-- <h1>SATATUA</h1> -->
+    <h1>SATATUA</h1>
     <p>Satu Data untuk Semua — Dashboard Tabulasi Kelurahan</p>
   </div>
   <div class="header-controls">
@@ -399,12 +399,12 @@ async function loadData() {
 
     const bulanSet = new Set();
     allRows.forEach(r => {
-      const b = getBulan(r['TANGGAL PENGISIAN'] || r['TANGGAL PENGISIAN ']);
+      const b = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
       if (b) bulanSet.add(b);
     });
     const bulanAvail = BULAN_ORDER.filter(b => bulanSet.has(b));
     populateBulan(bulanAvail);
-    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')} (*Nov & Des Tahun 2025)`);
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')}`);
     renderAll();
 
   } catch(e) {
@@ -434,7 +434,7 @@ function getBulanSelected() { return document.getElementById('bulan-select').val
 // Ambil baris yang cocok bulan + jenis, ATAU jenisnya kosong (data lama)
 function filterRows(bulan, jenis) {
   return allRows.filter(r => {
-    const b = getBulan(r['TANGGAL PENGISIAN'] || r['TANGGAL PENGISIAN ']);
+    const b = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
     const j = (r['JENIS INPUTAN DATA'] || '').trim();
     const rw = (r['RW'] || '').trim();
     if (b !== bulan || !RW_LIST.includes(rw)) return false;
@@ -549,8 +549,8 @@ function renderKeluarga(bulan) {
 function renderPUS(bulan) {
   const rows = filterRows(bulan, 'JUMLAH PUS');
   const colsPUS = [
-    { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB' },
-    { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB' },
+    { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB ' },
+    { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB ' },
   ];
   const colsKB = [
     { label: 'Pil',            key: 'PIL' },
