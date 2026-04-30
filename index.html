@@ -241,6 +241,7 @@
       border-top: 2px solid var(--border);
     }
     td.zero { color: #ccc; }
+  tr.no-input td { color: #ccc; font-style: italic; }
 
     /* ── LOADING / ERROR ── */
     .loading-overlay {
@@ -375,8 +376,28 @@ function getBulan(raw) {
 }
 
 // ── STATE ────────────────────────────────────────────────────────────────────
-let allRows  = [];
+let allRows   = [];  // raw semua baris dari CSV
+let dedupRows = {};  // { 'BULAN|RW': rowObject } — 1 baris per RW per bulan (latest)
 let activeTab = 'penduduk';
+
+// ── DEDUPLIKASI ───────────────────────────────────────────────────────────────
+// Untuk setiap kombinasi Bulan+RW, simpan hanya baris dengan Timestamp terbaru
+function buildDedup(rows) {
+  const map = {};
+  rows.forEach(r => {
+    const b  = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
+    const rw = (r['RW'] || '').trim();
+    if (!b || !RW_LIST.includes(rw)) return;
+    const key = b + '|' + rw;
+    const ts  = new Date(r['Timestamp'] || 0).getTime();
+    if (!map[key] || ts > map[key]._ts) {
+      r._ts   = ts;
+      r._bulan = b;
+      map[key] = r;
+    }
+  });
+  return map;
+}
 
 // ── LOAD DATA ────────────────────────────────────────────────────────────────
 async function loadData() {
@@ -397,14 +418,17 @@ async function loadData() {
       return obj;
     });
 
+    // Bangun dedup map
+    dedupRows = buildDedup(allRows);
+
+    // Kumpulkan bulan yang tersedia dari dedup
     const bulanSet = new Set();
-    allRows.forEach(r => {
-      const b = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
-      if (b) bulanSet.add(b);
-    });
+    Object.values(dedupRows).forEach(r => bulanSet.add(r._bulan));
     const bulanAvail = BULAN_ORDER.filter(b => bulanSet.has(b));
     populateBulan(bulanAvail);
-    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris · Bulan tersedia: ${bulanAvail.join(', ')}`);
+
+    const totalDedup = Object.keys(dedupRows).length;
+    setStatus('ok', `Data berhasil dimuat · ${allRows.length} baris (${totalDedup} unik RW/bulan) · Bulan: ${bulanAvail.join(', ')}`);
     renderAll();
 
   } catch(e) {
@@ -431,15 +455,12 @@ function populateBulan(list) {
 function getBulanSelected() { return document.getElementById('bulan-select').value; }
 
 // ── FILTER ───────────────────────────────────────────────────────────────────
-// Ambil baris yang cocok bulan + jenis, ATAU jenisnya kosong (data lama)
-function filterRows(bulan, jenis) {
-  return allRows.filter(r => {
-    const b = getBulan(r['TANGGAL PENGISIAN '] || r['TANGGAL PENGISIAN']);
-    const j = (r['JENIS INPUTAN DATA'] || '').trim();
-    const rw = (r['RW'] || '').trim();
-    if (b !== bulan || !RW_LIST.includes(rw)) return false;
-    return j === jenis || j === '';
-  });
+// Kembalikan array baris per bulan — 1 baris per RW (sudah dedup, kolom E diabaikan)
+function filterRows(bulan) {
+  return RW_LIST.map(rw => {
+    const key = bulan + '|' + rw;
+    return dedupRows[key] || null;  // null kalau RW belum ada data di bulan ini
+  }).filter(r => r !== null);
 }
 
 function num(row, col) {
@@ -447,16 +468,15 @@ function num(row, col) {
   return isNaN(v) ? 0 : v;
 }
 
-function sumRW(rows, rw, col) {
-  return rows
-    .filter(r => (r['RW'] || '').trim() === rw)
-    .reduce((a, r) => a + num(r, col), 0);
-}
-
 function fmtNum(v) {
   return v === 0
     ? `<td class="zero">–</td>`
     : `<td>${v.toLocaleString('id-ID')}</td>`;
+}
+
+// ── HELPER: row per RW dari dedup (null kalau belum ada data) ─────────────────
+function getRowForRW(rows, rw) {
+  return rows.find(r => (r['RW'] || '').trim() === rw) || null;
 }
 
 // ── HELPER: BUILD TABLE (dengan kolom Total) ──────────────────────────────────
@@ -470,10 +490,13 @@ function buildTable(title, bulan, rows, cols) {
   const grand = new Array(cols.length).fill(0);
   let body = '';
   RW_LIST.forEach(rw => {
-    const vals = cols.map(c => sumRW(rows, rw, c.key));
+    const row  = getRowForRW(rows, rw);
+    const vals = cols.map(c => row ? num(row, c.key) : 0);
     const tot  = vals.reduce((a, b) => a + b, 0);
     vals.forEach((v, i) => grand[i] += v);
-    body += `<tr><td>${rw}</td>${vals.map(fmtNum).join('')}<td><strong>${tot.toLocaleString('id-ID')}</strong></td></tr>`;
+    // Kalau row null (belum ada data bulan ini), tampilkan baris abu-abu
+    const trClass = row ? '' : ' class="no-input"';
+    body += `<tr${trClass}><td>${rw}</td>${vals.map(fmtNum).join('')}<td><strong>${row ? tot.toLocaleString('id-ID') : '–'}</strong></td></tr>`;
   });
   const grandSum = grand.reduce((a, b) => a + b, 0);
   body += `<tr class="total-row"><td>TOTAL</td>${grand.map(v=>`<td>${v.toLocaleString('id-ID')}</td>`).join('')}<td>${grandSum.toLocaleString('id-ID')}</td></tr>`;
@@ -498,9 +521,11 @@ function buildTableNoTotal(title, bulan, rows, cols) {
   const grand = new Array(cols.length).fill(0);
   let body = '';
   RW_LIST.forEach(rw => {
-    const vals = cols.map(c => sumRW(rows, rw, c.key));
+    const row  = getRowForRW(rows, rw);
+    const vals = cols.map(c => row ? num(row, c.key) : 0);
     vals.forEach((v, i) => grand[i] += v);
-    body += `<tr><td>${rw}</td>${vals.map(fmtNum).join('')}</tr>`;
+    const trClass = row ? '' : ' class="no-input"';
+    body += `<tr${trClass}><td>${rw}</td>${vals.map(fmtNum).join('')}</tr>`;
   });
   body += `<tr class="total-row"><td>TOTAL</td>${grand.map(v=>`<td>${v.toLocaleString('id-ID')}</td>`).join('')}</tr>`;
 
@@ -515,7 +540,7 @@ function buildTableNoTotal(title, bulan, rows, cols) {
 
 // ── 1. JUMLAH PENDUDUK ────────────────────────────────────────────────────────
 function renderPenduduk(bulan) {
-  const rows  = filterRows(bulan, 'JUMLAH PENDUDUK');
+  const rows  = filterRows(bulan);
   const colsL = USIA_GROUPS.map(u => ({ label: u, key: `LAKI-LAKI | USIA ${u} TAHUN` }));
   const colsP = USIA_GROUPS.map(u => ({ label: u, key: `PEREMPUAN | USIA ${u} TAHUN` }));
   return `
@@ -529,7 +554,7 @@ function renderPenduduk(bulan) {
 
 // ── 2. KELUARGA / KK ──────────────────────────────────────────────────────────
 function renderKeluarga(bulan) {
-  const rows = filterRows(bulan, 'KELUARGA / KK');
+  const rows = filterRows(bulan);
   const cols = [
     { label: 'Jumlah KK',          key: 'JUMLAH KK DI WILAYAH RW' },
     { label: 'Jumlah Remaja',       key: 'JUMLAH REMAJA DI WILAYAH RW' },
@@ -547,7 +572,7 @@ function renderKeluarga(bulan) {
 
 // ── 3. JUMLAH PUS & KB ────────────────────────────────────────────────────────
 function renderPUS(bulan) {
-  const rows = filterRows(bulan, 'JUMLAH PUS');
+  const rows = filterRows(bulan);
   const colsPUS = [
     { label: 'PUS Ber-KB',       key: '1. JUMLAH PUS YANG BER KB ' },
     { label: 'PUS Tidak Ber-KB', key: '2. JUMLAH PUS YANG TIDAK BER KB ' },
@@ -581,7 +606,7 @@ function renderPUS(bulan) {
 
 // ── 4. BALITA, BADUTA & BUSUI ─────────────────────────────────────────────────
 function renderBalita(bulan) {
-  const rows = filterRows(bulan, 'JUMLAH BALITA, BADUTA DAN BUSUI');
+  const rows = filterRows(bulan);
   const cols = [
     { label: 'Jumlah Balita',        key: 'JUMLAH BALITA' },
     { label: 'Jumlah Baduta',        key: 'JUMLAH BADUTA' },
@@ -598,7 +623,7 @@ function renderBalita(bulan) {
 // ── 5. JUMLAH WUS ─────────────────────────────────────────────────────────────
 function renderWUS(bulan) {
   // WUS ada di baris yang sama dengan JUMLAH PENDUDUK
-  const rows = filterRows(bulan, 'JUMLAH PENDUDUK');
+  const rows = filterRows(bulan);
   const cols = WUS_GROUPS.map(u => ({ label: u, key: `WUS USIA ${u} TAHUN` }));
   return `
     <div class="section-header">
@@ -610,7 +635,7 @@ function renderWUS(bulan) {
 
 // ── 6. PENERIMA MBG 3B ───────────────────────────────────────────────────────
 function renderMBG(bulan) {
-  const rows = filterRows(bulan, 'PENERIMA MBG 3B');
+  const rows = filterRows(bulan);
   const cols = [
     { label: 'Bumil (Ibu Hamil)',    key: 'Penerima Bumil (Ibu Hamil)' },
     { label: 'Baduta (Non-PAUD)',    key: 'Penerima Baduta (Non-PAUD)' },
