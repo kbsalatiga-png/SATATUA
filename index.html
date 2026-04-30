@@ -386,7 +386,7 @@ function buildDedup(rows) {
 
   // Hitung jumlah kolom terisi (tidak kosong, bukan '0') pada suatu baris
   function countFilled(r) {
-    return Object.values(r).filter(v => v !== '' && v !== '0' && v != null).length;
+    return Object.values(r).filter(v => v !== '' && v != null).length;
   }
 
   rows.forEach(r => {
